@@ -1,7 +1,9 @@
 import os
 from dotenv import load_dotenv
 
-from sqlalchemy import create_engine, Column, Integer, String
+from datetime import datetime
+
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
@@ -23,6 +25,7 @@ class SteamItem(Base):
     instanceid = Column(Integer)
     amount = Column(Integer)
     market_hash_name = Column(String)
+    date_received = Column(DateTime)
 
 def init_db(db_url = DATABASE_URL):
     engine = create_engine(db_url)
@@ -37,11 +40,12 @@ def get_db_session(db_url=DATABASE_URL):
 def get_cs2_item_from_dict(item: dict) -> SteamItem:
     if item['appid'] != AppID.CS2:
         return None
-    
+    time_ = datetime.now()
     return SteamItem(
         item_id=int(item['id']),
         classid=item['classid'],
         instanceid=item['instanceid'],
         amount=item['amount'],
-        market_hash_name=item['market_hash_name']
+        market_hash_name=item['market_hash_name'],
+        date_received=time_
     )
