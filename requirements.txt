@@ -1,0 +1,15 @@
+beautifulsoup4==4.13.4
+certifi==2025.4.26
+charset-normalizer==3.4.2
+dotenv==0.9.9
+greenlet==3.2.2
+idna==3.10
+pyasn1==0.6.1
+python-dotenv==1.1.0
+requests==2.32.3
+rsa==4.9.1
+soupsieve==2.7
+SQLAlchemy==2.0.41
+steampy @ git+https://github.com/wolfovik/steampy.git@a9793b9814b91249315a258e98d9422e49a42b36
+typing_extensions==4.13.2
+urllib3==2.4.0
