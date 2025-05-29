@@ -2,8 +2,10 @@ import os
 import time
 import logging
 import traceback
+from requests.exceptions import RequestException
 from datetime import datetime
 
+from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
 from steampy.client import SteamClient, TradeOfferState
 
@@ -14,7 +16,7 @@ from src.database import (AppID, SteamItem,
 
 logger = logging.getLogger('__name__')
 
-load_dotenv()
+load_dotenv(override=True)
 
 API_KEY = os.environ.get('STEAM_API_KEY')
 STEAMGUARD_PATH = os.environ.get('STEAMGUARD_PATH')
@@ -53,20 +55,37 @@ def main() -> None:
     logger.info(f'Successful authorization <<{STEAM_USERNAME}>> in Steam. Start of bot work')
     
     while True:
-        offers = client.get_trade_offers(use_webtoken=True)['response']['trade_offers_received']
-        for offer in offers:
-            if is_donation(offer):
-                offer_id = offer['tradeofferid']
-                count_accepted_items = len(offer['items_to_receive'])
-                client.accept_trade_offer(offer_id)
-                for item in offer['items_to_receive']:
-                    item_ = offer['items_to_receive'][item]
-                    if int(item_['appid']) == AppID.CS2:
-                        db_item = get_cs2_item_from_dict(item_)
-                        db_session.add(db_item)
-                        db_session.commit()
-                logger.info(f'Accepted trade offer {offer_id}. Got {count_accepted_items} items')
-        time.sleep(TIMEOUT)
+        try:
+            offers = client.get_trade_offers(use_webtoken=True)['response']['trade_offers_received']
+            for offer in offers:
+                if is_donation(offer):
+                    offer_id = offer['tradeofferid']
+                    count_accepted_items = len(offer['items_to_receive'])
+                    client.accept_trade_offer(offer_id)
+                    for item in offer['items_to_receive']:
+                        item_ = offer['items_to_receive'][item]
+                        if int(item_['appid']) == AppID.CS2:
+                            db_item = get_cs2_item_from_dict(item_)
+                            db_session.add(db_item)
+                            db_session.commit()
+                    logger.info(f'Accepted trade offer {offer_id}. Got {count_accepted_items} items')
+            time.sleep(TIMEOUT)
+
+        except SQLAlchemyError as e:
+            logger.critical(f'Database error: {e}. Stopping bot.')
+            raise SystemExit(1)
+        
+        except Exception as e:
+            logger.error(f'Unexpected error: {e}')
+            traceback.print_exc()
+            logger.info('Timeoput 30 sec...')
+            time.sleep(30)
+            logger.info('Relogin steam...')
+            client.logout()
+            time.sleep(5)
+            client.login(STEAM_USERNAME, STEAM_PASSWORD, STEAMGUARD_PATH)
+            logger.info('Relogin success')
+            continue
 
 
 def are_credentials_filled() -> bool:
@@ -84,7 +103,13 @@ def is_donation(offer: dict) -> bool:
 
 if __name__ == '__main__':
     log_file_path = os.path.join(LOG_FILE_PATH, f"{str(datetime.now().date()) + '_' + LOG_FILE_NAME}")
-    logging.basicConfig(level=logging.INFO,
-                        filename=log_file_path,
-                        format='%(asctime)s - [%(levelname)s] - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - [%(levelname)s]: %(message)s',
+        handlers=[
+            logging.FileHandler(log_file_path, encoding='utf-8'),  # File handler
+            logging.StreamHandler()  # Console handler
+        ]
+    )
     main()
+    
