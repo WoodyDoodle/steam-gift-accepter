@@ -55,7 +55,7 @@ python main.py
 - instanceid - Instance ID
 - amount - Quantity of identical items
 - market_hash_name - Item name
-- received_at - Receiving time
+- date_received - Receiving time
 
 ⚠️ Important
 Do not publish your .env file!
